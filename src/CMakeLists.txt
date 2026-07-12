@@ -16,7 +16,14 @@ target_include_directories(iqdb PUBLIC ../include)
 # Treat these headers as system headers (using -isystem instead of -I), so they
 # don't trigger compiler warnings.
 # https://gcc.gnu.org/onlinedocs/cpp/System-Headers.html
-target_include_directories(iqdb SYSTEM PRIVATE ${HTTPLIB_INCLUDE_DIR})
+get_target_property(NLOHMANN_JSON_INCLUDE_DIR nlohmann_json::nlohmann_json INTERFACE_INCLUDE_DIRECTORIES)
+get_target_property(SQLITE_ORM_INCLUDE_DIR sqlite_orm::sqlite_orm INTERFACE_INCLUDE_DIRECTORIES)
+
+target_include_directories(iqdb SYSTEM PRIVATE
+  ${HTTPLIB_INCLUDE_DIR}
+  ${NLOHMANN_JSON_INCLUDE_DIR}
+  ${SQLITE_ORM_INCLUDE_DIR}
+)
 
 set(IQDB_DEBUG_CFLAGS
   # https://gcc.gnu.org/onlinedocs/gcc/Debugging-Options.html
@@ -77,5 +84,14 @@ endif()
 
 target_compile_options(iqdb PRIVATE $<$<CONFIG:DEBUG>:${IQDB_DEBUG_CFLAGS}>)
 target_compile_options(iqdb PRIVATE $<$<CONFIG:RELEASE>:${IQDB_RELEASE_CFLAGS}>)
+
+# GCC's -Wstrict-overflow is emitted by the optimizer rather than the front
+# end, so unlike our other warnings it isn't suppressed by marking
+# nlohmann/json's headers as system includes above. Downgrade it to a
+# non-fatal warning for the one file that includes json.hpp.
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=89543
+set_source_files_properties(server.cpp PROPERTIES
+  COMPILE_OPTIONS "$<$<CONFIG:DEBUG>:-Wno-error=strict-overflow>"
+)
 
 target_link_options(iqdb PRIVATE $<$<CONFIG:DEBUG>:${IQDB_DEBUG_LDFLAGS}>)

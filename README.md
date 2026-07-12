@@ -88,6 +88,16 @@ You will have to determine a good cutoff score yourself. Generally, 90+ is a
 strong match, 70+ is weak match (possibly a false positive), and <50 is no
 match.
 
+#### Metrics
+
+`GET /metrics` exposes Prometheus metrics in the standard text exposition
+format: HTTP request counts and latency histograms by method/route/status,
+and the total number of images in the database.
+
+```bash
+curl http://localhost:5588/metrics
+```
+
 # Compiling
 
 IQDB requires the following dependencies to build:

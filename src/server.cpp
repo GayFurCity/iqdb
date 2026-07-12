@@ -18,6 +18,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 \**************************************************************************/
 
+#include <chrono>
 #include <csignal>
 #include <cstddef>
 #include <cstring>
@@ -30,6 +31,7 @@
 #include <iqdb/imgdb.h>
 #include <iqdb/imglib.h>
 #include <iqdb/haar_signature.h>
+#include <iqdb/metrics.h>
 #include <iqdb/types.h>
 
 #include <httplib.h>
@@ -193,8 +195,25 @@ void http_server(const std::string host, const int port, const std::string datab
     response.set_content(data.dump(4), "application/json");
   });
 
+  server.Get("/metrics", [&](const auto &request, auto &response) {
+    std::shared_lock lock(mutex_);
+
+    auto& registry = metrics::Registry::instance();
+    registry.images_total.set(static_cast<double>(memory_db->getImgCount()));
+
+    response.set_content(registry.render(), "text/plain; version=0.0.4");
+  });
+
   server.set_logger([](const auto &req, const auto &res) {
     INFO("{} \"{} {} {}\" {} {}", req.remote_addr, req.method, req.path, req.version, res.status, res.body.size());
+
+    const std::string route = req.matched_route.empty() ? req.path : req.matched_route;
+    const std::string status = std::to_string(res.status);
+    const double elapsed_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - req.start_time_).count();
+
+    auto& registry = metrics::Registry::instance();
+    registry.http_requests_total.increment({req.method, route, status});
+    registry.http_request_duration_seconds.observe({req.method, route}, elapsed_seconds);
   });
 
   server.set_exception_handler([](const auto& req, auto& res, std::exception_ptr ep) {

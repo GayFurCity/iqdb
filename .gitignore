@@ -1,4 +1,5 @@
-build/
-tmp/
-.clangd
-.vscode
+/build
+/tmp
+/.clangd
+/.vscode
+/.idea
